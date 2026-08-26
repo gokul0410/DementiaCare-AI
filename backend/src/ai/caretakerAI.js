@@ -14,11 +14,31 @@
 const path = require("path");
 
 // Safely load environment variables from backend/.env if available
-try {
-  require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
-} catch (envError) {
-  // Graceful fallback if dotenv is initialized elsewhere
+function loadEnv() {
+  try {
+    const dotenv = require("dotenv");
+    const fs = require("fs");
+    
+    // Check possible locations for .env
+    const possiblePaths = [
+      path.resolve(__dirname, "../../.env"),      // backend/.env relative to src/ai
+      path.resolve(__dirname, "../../../.env"),   // root/.env
+      path.resolve(process.cwd(), ".env"),       // cwd/.env
+      path.resolve(process.cwd(), "backend/.env") // cwd/backend/.env
+    ];
+
+    for (const envPath of possiblePaths) {
+      if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        if (process.env.GEMINI_API_KEY) break;
+      }
+    }
+  } catch (envError) {
+    // Graceful fallback if dotenv is initialized elsewhere
+  }
 }
+
+loadEnv();
 
 const { SYSTEM_INSTRUCTION, buildCaretakerPrompt, buildFallbackSummary } = require("./prompts");
 const { analyzeGameData, computeMetrics } = require("./trendAnalyzer");
@@ -136,8 +156,11 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
   // Step 2: Generate baseline recommendations
   const ruleRecommendations = generateRecommendations(analysis, user);
 
-  // Step 3: Access Gemini API key securely from options or environment variable
-  const apiKey = options.apiKey || process.env.GEMINI_API_KEY;
+  // Step 3: Access Gemini API key securely from environment (.env) or options
+  if (!process.env.GEMINI_API_KEY) {
+    loadEnv();
+  }
+  const apiKey = options.apiKey !== undefined ? options.apiKey : process.env.GEMINI_API_KEY;
   const model = options.model || process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   let aiResponse = null;
