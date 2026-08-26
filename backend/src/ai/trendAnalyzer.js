@@ -12,7 +12,9 @@
 function formatGameName(gameType) {
   if (!gameType) return "General Cognitive Activity";
   return gameType
+    .replace(/[-_]/g, ' ')
     .replace(/([A-Z])/g, ' $1')
+    .replace(/\s+/g, ' ')
     .replace(/^./, str => str.toUpperCase())
     .trim();
 }

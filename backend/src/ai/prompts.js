@@ -47,7 +47,7 @@ ${analysis.areasToWatch && analysis.areasToWatch.length > 0
 
 ACTIVITY TRENDS:
 ${analysis.trends && analysis.trends.length > 0 
-  ? analysis.trends.map(t => `- ${t.gameType}: ${t.trend.toUpperCase()} - ${t.description}`).join("\n") 
+  ? analysis.trends.map(t => `- ${typeof t === 'string' ? t : `${t.gameType || 'Activity'}: ${t.trend || 'stable'} - ${t.description || ''}`}`).join("\n") 
   : "- Single session recorded; trend tracking will activate across future sessions."}
 
 PRELIMINARY RECOMMENDATIONS:
@@ -79,23 +79,23 @@ function buildFallbackSummary(user, analysis, recommendations) {
   const total = analysis?.overall?.totalSessions || 0;
   const avgAcc = analysis?.overall?.avgAccuracy || 0;
 
-  let summary = `${userName} completed ${total} cognitive game session${total === 1 ? '' : 's'} with an overall average accuracy of ${avgAcc}%. `;
+  let sentences = [
+    `${userName} completed ${total} cognitive game session${total === 1 ? '' : 's'} with an overall average accuracy of ${avgAcc}%.`
+  ];
 
   if (analysis?.strengths && analysis.strengths.length > 0) {
-    const strengthSnippet = analysis.strengths[0].replace(/^Strong performance in /i, '').replace(/^Consistent accuracy in /i, '');
-    summary += `Notable strength was demonstrated in ${strengthSnippet}. `;
+    sentences.push(analysis.strengths[0]);
   }
 
   if (analysis?.areasToWatch && analysis.areasToWatch.length > 0) {
-    const watchSnippet = analysis.areasToWatch[0].replace(/^Lower accuracy in /i, '').replace(/^Decreased accuracy in /i, '');
-    summary += `Activities like ${watchSnippet} may benefit from a gentler difficulty or extra time. `;
+    sentences.push(`Focus area: ${analysis.areasToWatch[0]}`);
   } else {
-    summary += `Overall engagement and consistency across activities remain steady. `;
+    sentences.push("Consistent and steady engagement was observed across all recorded activities.");
   }
 
-  summary += `Continuing regular, relaxed daily sessions is recommended to keep activities enjoyable and stimulating.`;
+  sentences.push("Continuing regular, relaxed daily sessions is recommended to keep activities enjoyable.");
 
-  return summary;
+  return sentences.join(" ");
 }
 
 module.exports = {

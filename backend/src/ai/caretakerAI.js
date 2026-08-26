@@ -4,12 +4,21 @@
  * 
  * Analyzes cognitive game results, detects strengths, areas to watch,
  * computes multi-session trends, generates personalized activity recommendations,
- * and produces a clear, empathetic Caretaker Summary using Gemini API (with robust fallback).
+ * and produces a clear, empathetic Caretaker Summary using the Gemini API (with robust fallback).
  * 
  * IMPORTANT:
  * This module NEVER provides clinical or medical diagnoses (such as dementia or Alzheimer's).
  * It is strictly for activity engagement analysis and supportive caregiver insights.
  */
+
+const path = require("path");
+
+// Safely load environment variables from backend/.env if available
+try {
+  require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
+} catch (envError) {
+  // Graceful fallback if dotenv is initialized elsewhere
+}
 
 const { SYSTEM_INSTRUCTION, buildCaretakerPrompt, buildFallbackSummary } = require("./prompts");
 const { analyzeGameData, computeMetrics } = require("./trendAnalyzer");
@@ -17,37 +26,42 @@ const { generateRecommendations } = require("./recommendationEngine");
 
 /**
  * Calls the Google Gemini API to generate natural language caretaker insights.
- * @param {string} prompt - User prompt
- * @param {string} apiKey - Gemini API Key
- * @param {string} model - Gemini model name (default: "gemini-1.5-flash")
+ * Uses official @google/genai SDK with safe fallback.
+ * 
+ * @param {string} prompt - Formatted user prompt
+ * @param {string} apiKey - Gemini API Key (accessed via process.env.GEMINI_API_KEY)
+ * @param {string} model - Model identifier (default: "gemini-3.6-flash")
  * @returns {Promise<Object|null>} Parsed JSON response from Gemini or null on failure
  */
-async function callGeminiAPI(prompt, apiKey, model = "gemini-1.5-flash") {
+async function callGeminiAPI(prompt, apiKey, model = (process.env.GEMINI_MODEL || "gemini-3.6-flash")) {
   if (!apiKey) {
     return null;
   }
 
-  // 1. Try using official Google SDKs if installed in project
+  // 1. Primary: Official @google/genai SDK
   try {
-    const { GoogleGenerativeAI } = require("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const geminiModel = genAI.getGenerativeModel({
+    const { GoogleGenAI } = require("@google/genai");
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
       model: model,
-      systemInstruction: SYSTEM_INSTRUCTION,
-      generationConfig: {
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         temperature: 0.3
       }
     });
 
-    const result = await geminiModel.generateContent(prompt);
-    const responseText = result.response.text();
-    return JSON.parse(responseText);
+    const responseText = response?.text;
+    if (responseText) {
+      const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      return JSON.parse(cleaned);
+    }
   } catch (sdkError) {
-    // SDK not installed or failed, proceed to direct REST fetch
+    // SDK call failed; attempt REST fallback without logging sensitive info
   }
 
-  // 2. Direct REST API call using native fetch (Node.js 18+)
+  // 2. Secondary: Direct REST API call via native fetch (Node.js 18+)
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const payload = {
@@ -72,20 +86,16 @@ async function callGeminiAPI(prompt, apiKey, model = "gemini-1.5-flash") {
       body: JSON.stringify(payload)
     });
 
-    if (!response.ok) {
-      console.warn(`[CaretakerAI] Gemini API returned status ${response.status}: ${response.statusText}`);
-      return null;
+    if (response.ok) {
+      const data = await response.json();
+      const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (candidateText) {
+        const cleaned = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        return JSON.parse(cleaned);
+      }
     }
-
-    const data = await response.json();
-    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (candidateText) {
-      // Clean potential markdown backticks if any
-      const cleaned = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      return JSON.parse(cleaned);
-    }
-  } catch (err) {
-    console.warn(`[CaretakerAI] Gemini API call error: ${err.message}. Using high-quality rule-based fallback.`);
+  } catch (restError) {
+    // Network or fetch failure; fallback will be used
   }
 
   return null;
@@ -126,9 +136,9 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
   // Step 2: Generate baseline recommendations
   const ruleRecommendations = generateRecommendations(analysis, user);
 
-  // Step 3: Check for Gemini API key (from options or environment)
+  // Step 3: Access Gemini API key securely from options or environment variable
   const apiKey = options.apiKey || process.env.GEMINI_API_KEY;
-  const model = options.model || process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  const model = options.model || process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   let aiResponse = null;
   if (apiKey) {
@@ -155,7 +165,7 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
       recommendations = aiResponse.refinedRecommendations;
     }
   } else {
-    // Graceful fallback when Gemini is unavailable or not configured
+    // Graceful fallback when Gemini is unavailable, offline, or key is not provided
     summary = buildFallbackSummary(user, analysis, ruleRecommendations);
   }
 
@@ -170,6 +180,7 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
 
 module.exports = {
   analyzeCaretakerData,
+  analyzeCognitiveData: analyzeCaretakerData,
   analyzeGameData,
   generateRecommendations
 };
