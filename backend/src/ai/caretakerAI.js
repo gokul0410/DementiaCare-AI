@@ -4,11 +4,12 @@
  * 
  * Analyzes cognitive game results, detects strengths, areas to watch,
  * computes multi-session trends, generates personalized activity recommendations,
+ * tracks daily routine compliance (medication, hydration, brain exercises),
  * and produces a clear, empathetic Caretaker Summary using the Gemini API (with robust fallback).
  * 
  * IMPORTANT:
  * This module NEVER provides clinical or medical diagnoses (such as dementia or Alzheimer's).
- * It is strictly for activity engagement analysis and supportive caregiver insights.
+ * It is strictly for activity engagement analysis, daily routine support, and caregiver insights.
  */
 
 const path = require("path");
@@ -43,6 +44,7 @@ loadEnv();
 const { SYSTEM_INSTRUCTION, buildCaretakerPrompt, buildFallbackSummary } = require("./prompts");
 const { analyzeGameData, computeMetrics } = require("./trendAnalyzer");
 const { generateRecommendations } = require("./recommendationEngine");
+const routineManager = require("./routineManager");
 
 /**
  * Calls the Google Gemini API to generate natural language caretaker insights.
@@ -122,7 +124,7 @@ async function callGeminiAPI(prompt, apiKey, model = (process.env.GEMINI_MODEL |
 }
 
 /**
- * Main function to analyze cognitive game performance and return caregiver insights.
+ * Main function to analyze cognitive game performance, routine adherence, and return caregiver insights.
  * 
  * Expected Input:
  * {
@@ -130,6 +132,9 @@ async function callGeminiAPI(prompt, apiKey, model = (process.env.GEMINI_MODEL |
  *   "gameResults": [
  *     { "gameType": "memory", "score": 8, "accuracy": 80, "timeTaken": 35, "difficulty": "medium", "playedAt": "2026-08-26" },
  *     { "gameType": "wordRecall", "score": 5, "accuracy": 50, "timeTaken": 60, "difficulty": "easy", "playedAt": "2026-08-26" }
+ *   ],
+ *   "routineLogs": [ // Optional: Routine completion logs
+ *     { "routineId": "morning_tablet", "status": "completed", "timestamp": "2026-08-27T09:05:00Z" }
  *   ]
  * }
  * 
@@ -139,10 +144,11 @@ async function callGeminiAPI(prompt, apiKey, model = (process.env.GEMINI_MODEL |
  *   "strengths": [],
  *   "areasToWatch": [],
  *   "trends": [],
- *   "recommendations": []
+ *   "recommendations": [],
+ *   "routineCompliance": { ... }
  * }
  * 
- * @param {Object} inputData - Object containing `user` and `gameResults`
+ * @param {Object} inputData - Object containing `user`, `gameResults`, and optional `routineLogs`/`routines`
  * @param {Object} [options] - Optional settings ({ apiKey, model })
  * @returns {Promise<Object>} Formatted Caretaker AI analysis report
  */
@@ -156,7 +162,11 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
   // Step 2: Generate baseline recommendations
   const ruleRecommendations = generateRecommendations(analysis, user);
 
-  // Step 3: Access Gemini API key securely from environment (.env) or options
+  // Step 3: Calculate routine completion compliance
+  const routineLogs = inputData.routineLogs || inputData.routineEvents || null;
+  const routineStats = routineManager.calculateCompliance(inputData.routines, routineLogs);
+
+  // Step 4: Access Gemini API key securely from environment (.env) or options
   if (!process.env.GEMINI_API_KEY) {
     loadEnv();
   }
@@ -165,11 +175,11 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
 
   let aiResponse = null;
   if (apiKey) {
-    const prompt = buildCaretakerPrompt(user, analysis, ruleRecommendations);
+    const prompt = buildCaretakerPrompt(user, analysis, ruleRecommendations, routineStats);
     aiResponse = await callGeminiAPI(prompt, apiKey, model);
   }
 
-  // Step 4: Assemble final response conforming to expected output format
+  // Step 5: Assemble final response conforming to expected output format
   let summary = "";
   let strengths = analysis.strengths;
   let areasToWatch = analysis.areasToWatch;
@@ -189,7 +199,7 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
     }
   } else {
     // Graceful fallback when Gemini is unavailable, offline, or key is not provided
-    summary = buildFallbackSummary(user, analysis, ruleRecommendations);
+    summary = buildFallbackSummary(user, analysis, ruleRecommendations, routineStats);
   }
 
   return {
@@ -197,7 +207,8 @@ async function analyzeCaretakerData(inputData = {}, options = {}) {
     strengths,
     areasToWatch,
     trends,
-    recommendations
+    recommendations,
+    routineCompliance: routineStats
   };
 }
 
@@ -205,5 +216,13 @@ module.exports = {
   analyzeCaretakerData,
   analyzeCognitiveData: analyzeCaretakerData,
   analyzeGameData,
-  generateRecommendations
+  generateRecommendations,
+  routineManager,
+  timeService: require("./timeService"),
+  getDefaultRoutines: routineManager.getDefaultRoutines,
+  getActiveReminders: routineManager.getActiveReminders,
+  checkRealTimeRoutines: routineManager.checkRealTimeRoutines,
+  extractCurrentTimeHHMM: routineManager.extractCurrentTimeHHMM,
+  logRoutineEvent: routineManager.logRoutineEvent,
+  calculateCompliance: routineManager.calculateCompliance
 };

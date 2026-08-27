@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DementiaCare AI - Caretaker Routine & Character Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 10% 20%, rgb(240, 246, 255) 0%, rgb(224, 238, 255) 50%, rgb(245, 240, 255) 100%);
+      --primary: #4F46E5;
+      --primary-light: #818CF8;
+      --secondary: #06B6D4;
+      --accent: #F59E0B;
+      --success: #10B981;
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --card-border: rgba(255, 255, 255, 0.75);
+      --card-shadow: 0 20px 40px -15px rgba(30, 58, 138, 0.12), 0 0 1px 1px rgba(255, 255, 255, 0.9) inset;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --avatar-size: 160px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient Background Glows */
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .orb-1 {
+      width: 450px;
+      height: 450px;
+      background: rgba(99, 102, 241, 0.15);
+      top: -100px;
+      left: -100px;
+    }
+
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      background: rgba(6, 182, 212, 0.15);
+      bottom: 50px;
+      right: 200px;
+    }
+
+    /* App Container */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 8rem;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #4F46E5, #06B6D4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.35);
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #0F172A;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #ECFDF5;
+      color: #059669;
+      border: 1px solid #A7F3D0;
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .badge-pill .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+      }
+
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+
+    /* Live Real-Time Clock Banner */
+    .realtime-banner {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+      color: #F8FAFC;
+      border-radius: 20px;
+      padding: 1.25rem 1.75rem;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 15px 30px -10px rgba(15, 23, 42, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      flex-wrap: wrap;
+      gap: 1.25rem;
+    }
+
+    .clock-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .digital-clock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #38BDF8;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    }
+
+    .clock-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .clock-zone {
+      font-size: 0.82rem;
+      color: #94A3B8;
+      font-weight: 500;
+    }
+
+    .sync-status {
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #34D399;
+      background: rgba(16, 185, 129, 0.15);
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .clock-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.5rem 0.9rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .toggle-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #E2E8F0;
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #475569;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: #10B981;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+
+    .sim-btn-group {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .sim-btn {
+      background: rgba(255, 255, 255, 0.12);
+      color: #E2E8F0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0.35rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sim-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+    }
+
+    /* Main Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: var(--card-shadow);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #0F172A;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+
+    /* Routine Action Buttons Grid */
+    .routine-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .routine-btn {
+      background: #FFFFFF;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 1.1rem;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .routine-btn:hover {
+      border-color: var(--primary-light);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.18);
+    }
+
+    .routine-btn:active {
+      transform: scale(0.98);
+    }
+
+    .routine-btn.active-now {
+      border-color: #10B981;
+      background: #F0FDF4;
+      box-shadow: 0 0 0 2px #10B981;
+    }
+
+    .routine-btn .icon-time {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .routine-btn .routine-icon {
+      font-size: 1.75rem;
+    }
+
+    .routine-btn .routine-time {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6366F1;
+      background: #EEF2FF;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    .routine-btn .routine-name {
+      font-weight: 600;
+      font-size: 0.98rem;
+      color: #1E293B;
+    }
+
+    .routine-btn .routine-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    /* Progress & Compliance Widget */
+    .compliance-card {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .progress-stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-block {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 12px;
+      background: #E2E8F0;
+      border-radius: 9999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 75%;
+      background: linear-gradient(90deg, #4F46E5, #06B6D4);
+      border-radius: 9999px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Event Logs Panel */
+    .log-panel {
+      background: #0F172A;
+      color: #F8FAFC;
+      border-radius: 16px;
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      max-height: 190px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .log-time {
+      color: #94A3B8;
+    }
+
+    .log-completed {
+      color: #34D399;
+      font-weight: 600;
+    }
+
+    .log-snoozed {
+      color: #FBBF24;
+      font-weight: 600;
+    }
+
+    .log-triggered {
+      color: #38BDF8;
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       ANIMATED CARETAKER CHARACTER COMPANION (Bottom Right)
+       ========================================================================== */
+    .companion-widget {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1rem;
+    }
+
+    /* Interactive Speech Bubble */
+    .speech-bubble {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(20px);
+      border: 1.5px solid rgba(255, 255, 255, 0.95);
+      border-radius: 20px 20px 4px 20px;
+      padding: 1.25rem 1.4rem;
+      max-width: 320px;
+      box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.15);
+      transform-origin: bottom right;
+      transform: scale(0);
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+      position: relative;
+    }
+
+    .speech-bubble.active {
+      transform: scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .bubble-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .bubble-msg {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #1E293B;
+      line-height: 1.45;
+      margin-bottom: 1rem;
+    }
+
+    .bubble-actions {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 0.55rem 0.8rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+    }
+
+    .btn-complete {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-complete:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-snooze {
+      background: #F1F5F9;
+      color: #475569;
+    }
+
+    .btn-snooze:hover {
+      background: #E2E8F0;
+    }
+
+    /* Avatar Container */
+    .avatar-wrapper {
+      width: var(--avatar-size);
+      height: var(--avatar-size);
+      position: relative;
+      cursor: pointer;
+      filter: drop-shadow(0 15px 25px rgba(79, 70, 229, 0.25));
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .avatar-wrapper:hover {
+      transform: scale(1.05);
+    }
+
+    /* SVG Character Animations */
+    .avatar-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .character-body {
+      animation: floatIdle 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIdle {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .character-wave .arm-right {
+      animation: waveHand 0.8s ease-in-out 3;
+      transform-origin: 110px 105px;
+    }
+
+    @keyframes waveHand {
+
+      0%,
+      100% {
+        transform: rotate(0deg);
+      }
+
+      50% {
+        transform: rotate(-35deg);
+      }
+    }
+
+    .character-bounce {
+      animation: happyBounce 0.6s cubic-bezier(0.36, 0, 0.66, -0.56) 2;
+    }
+
+    @keyframes happyBounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-20px);
+      }
+    }
+
+    .eye-blink {
+      animation: blink 4s infinite;
+      transform-origin: center;
+    }
+
+    @keyframes blink {
+
+      0%,
+      96%,
+      100% {
+        transform: scaleY(1);
+      }
+
+      98% {
+        transform: scaleY(0.1);
+      }
+    }
+
+    /* Confetti Canvas */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Ambient Glows -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <canvas id="confettiCanvas"></canvas>
+
+  <div class="app-container">
+
+    <!-- Top Header -->
+    <header>
+      <div class="brand-section">
+        <div class="brand-logo">🧠</div>
+        <div>
+          <h1>DementiaCare AI</h1>
+          <p class="subtitle">Interactive Caretaker Routine Companion & Real-Time Engine</p>
+        </div>
+      </div>
+      <div class="badge-pill">
+        <div class="pulse-dot"></div>
+        <span>Caretaker AI Active</span>
+      </div>
+    </header>
+
+    <!-- Real-Time Clock & Trigger Banner -->
+    <div class="realtime-banner">
+      <div class="clock-left">
+        <div class="digital-clock" id="liveClockDisplay">09:00:00 AM</div>
+        <div class="clock-meta">
+          <span class="clock-zone" id="clockZoneText">Timezone: Asia/Kolkata (IST)</span>
+          <span class="sync-status" id="clockSyncStatus">
+            <span>●</span> Internet Time Synced
+          </span>
+        </div>
+      </div>
+
+      <div class="clock-controls">
+        <div class="toggle-wrapper">
+          <span class="toggle-label">Live Real-Time Trigger Mode</span>
+          <label class="switch">
+            <input type="checkbox" id="liveTriggerToggle" checked onchange="toggleLiveMode()">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Fast Simulation Buttons -->
+        <div class="sim-btn-group">
+          <button class="sim-btn" onclick="simulateTime('09:00', 'medication')">Simulate 09:00 AM</button>
+          <button class="sim-btn" onclick="simulateTime('11:00', 'brain_game')">Simulate 11:00 AM</button>
+          <button class="sim-btn" onclick="simulateTime('15:00', 'hydration')">Simulate 03:00 PM</button>
+          <button class="sim-btn" onclick="simulateTime('20:00', 'evening_med')">Simulate 08:00 PM</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+
+      <!-- Left: Interactive Routine Triggers -->
+      <section class="glass-card">
+        <h2 class="card-title">
+          <span>✨</span> Daily Routine Triggers
+        </h2>
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Click any reminder below to preview speech bubble rendering, natural voice synthesis (TTS), and avatar
+          animations. In <strong>Live Mode</strong>, reminders trigger automatically when the clock matches.
+        </p>
+
+        <div class="routine-grid">
+
+          <!-- 1. Medication -->
+          <button class="routine-btn" id="btn-medication" onclick="triggerRoutine('medication')">
+            <div class="icon-time">
+              <span class="routine-icon">💊</span>
+              <span class="routine-time">09:00 AM</span>
+            </div>
+            <div class="routine-name">Morning Tablet</div>
+            <div class="routine-desc">Gentle prescription & wellness tablet prompt.</div>
+          </button>
+
+          <!-- 2. Brain Game -->
+          <button class="routine-btn" id="btn-brain_game" onclick="triggerRoutine('brain_game')">
+            <div class="icon-time">
+              <span class="routine-icon">🧠</span>
+              <span class="routine-time">11:00 AM</span>
+            </div>
+            <div class="routine-name">Brain Game Warm-up</div>
+            <div class="routine-desc">5-minute uplifting memory card activity.</div>
+          </button>
+
+          <!-- 3. Hydration -->
+          <button class="routine-btn" id="btn-hydration" onclick="triggerRoutine('hydration')">
+            <div class="icon-time">
+              <span class="routine-icon">🥛</span>
+              <span class="routine-time">03:00 PM</span>
+            </div>
+            <div class="routine-name">Hydration Break</div>
+            <div class="routine-desc">Refreshing glass of water & light healthy snack.</div>
+          </button>
+
+          <!-- 4. Evening Tablet -->
+          <button class="routine-btn" id="btn-evening_med" onclick="triggerRoutine('evening_med')">
+            <div class="icon-time">
+              <span class="routine-icon">🌙</span>
+              <span class="routine-time">08:00 PM</span>
+            </div>
+            <div class="routine-name">Evening Tablet</div>
+            <div class="routine-desc">Nighttime wellness tablet before sleep.</div>
+          </button>
+
+          <!-- 5. Stretch -->
+          <button class="routine-btn" id="btn-stretch" onclick="triggerRoutine('stretch')">
+            <div class="icon-time">
+              <span class="routine-icon">🧘‍♂️</span>
+              <span class="routine-time">02:00 PM</span>
+            </div>
+            <div class="routine-name">Seated Movement</div>
+            <div class="routine-desc">Relaxing 2-minute seated upper body stretch.</div>
+          </button>
+
+          <!-- 6. Family Call -->
+          <button class="routine-btn" id="btn-family_call" onclick="triggerRoutine('family_call')">
+            <div class="icon-time">
+              <span class="routine-icon">📞</span>
+              <span class="routine-time">04:30 PM</span>
+            </div>
+            <div class="routine-name">Family Connection</div>
+            <div class="routine-desc">Social connection with loved ones or friends.</div>
+          </button>
+
+        </div>
+      </section>
+
+      <!-- Right: Adherence & Logs -->
+      <section class="glass-card compliance-card">
+        <h2 class="card-title">
+          <span>📊</span> Daily Adherence & Log
+        </h2>
+
+        <div class="progress-stats-row">
+          <div class="stat-block">
+            <div class="stat-number" id="compliancePercent">75%</div>
+            <div class="stat-label">Adherence Rate</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-number" id="completedCount">3 / 4</div>
+            <div class="stat-label">Routines Done</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-number" id="streakCount">🔥 5</div>
+            <div class="stat-label">Day Streak</div>
+          </div>
+        </div>
+
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBar" style="width: 75%;"></div>
+        </div>
+
+        <div>
+          <h3 style="font-size: 0.88rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem;">
+            Live Event Feed
+          </h3>
+          <div class="log-panel" id="logPanel">
+            <div class="log-entry"><span class="log-time">[09:05 AM]</span> Morning Tablet <span
+                class="log-completed">Completed ✅</span></div>
+            <div class="log-entry"><span class="log-time">[11:15 AM]</span> Brain Game Warm-up <span
+                class="log-completed">Completed ✅</span></div>
+            <div class="log-entry"><span class="log-time">[03:10 PM]</span> Hydration Break <span
+                class="log-completed">Completed ✅</span></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+
+  <!-- Animated Caretaker Character Widget (Bottom Right) -->
+  <div class="companion-widget">
+
+    <!-- Speech Bubble -->
+    <div class="speech-bubble" id="speechBubble">
+      <div class="bubble-header">
+        <span id="bubbleIcon">💊</span>
+        <span id="bubbleTitle">Morning Tablet</span>
+      </div>
+      <div class="bubble-msg" id="bubbleMsg">
+        Time for your morning tablet! 💊 Remember to take it with a glass of water.
+      </div>
+      <div class="bubble-actions">
+        <button class="action-btn btn-complete" onclick="completeCurrentRoutine()">
+          Completed ✅
+        </button>
+        <button class="action-btn btn-snooze" onclick="snoozeCurrentRoutine()">
+          Snooze ⏰
+        </button>
+      </div>
+    </div>
+
+    <!-- 2D Animated SVG Character Avatar -->
+    <div class="avatar-wrapper" id="avatarWrapper" onclick="avatarTapGreeting()">
+      <svg class="avatar-svg" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Glow Base -->
+        <circle cx="80" cy="80" r="72" fill="url(#avatarGlow)" opacity="0.35" />
+
+        <!-- Main Character Body Group -->
+        <g id="characterGroup" class="character-body">
+
+          <!-- Body / Clothes -->
+          <ellipse cx="80" cy="130" rx="42" ry="24" fill="url(#bodyGrad)" />
+          <ellipse cx="80" cy="122" rx="34" ry="14" fill="#6366F1" />
+          <path d="M72 120 L80 135 L88 120" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+
+          <!-- Left Arm -->
+          <path d="M42 115 Q30 125 40 138" stroke="#FDE68A" stroke-width="9" stroke-linecap="round" />
+
+          <!-- Right Arm (Waving) -->
+          <g class="arm-right">
+            <path d="M118 115 Q135 105 130 90" stroke="#FDE68A" stroke-width="9" stroke-linecap="round" />
+            <circle cx="130" cy="88" r="6" fill="#FCD34D" />
+          </g>
+
+          <!-- Head -->
+          <circle cx="80" cy="74" r="38" fill="url(#headGrad)" />
+
+          <!-- Hair & Cute Cap -->
+          <path d="M46 64 C46 40, 114 40, 114 64 C110 52, 95 46, 80 46 C65 46, 50 52, 46 64 Z" fill="#4338CA" />
+
+          <!-- Eyes -->
+          <g class="eye-blink">
+            <ellipse cx="68" cy="74" rx="4.5" ry="6" fill="#1E293B" />
+            <circle cx="70" cy="72" r="1.8" fill="#FFFFFF" />
+            <ellipse cx="92" cy="74" rx="4.5" ry="6" fill="#1E293B" />
+            <circle cx="94" cy="72" r="1.8" fill="#FFFFFF" />
+          </g>
+
+          <!-- Blush Cheeks -->
+          <circle cx="60" cy="82" r="5" fill="#FDA4AF" opacity="0.65" />
+          <circle cx="100" cy="82" r="5" fill="#FDA4AF" opacity="0.65" />
+
+          <!-- Friendly Smile -->
+          <path id="mouthPath" d="M72 84 Q80 94 88 84" stroke="#B45309" stroke-width="3" stroke-linecap="round"
+            fill="none" />
+
+          <!-- Halo of Wisdom -->
+          <ellipse cx="80" cy="36" rx="22" ry="5" stroke="#F59E0B" stroke-width="3" fill="none" opacity="0.85" />
+        </g>
+
+        <!-- Gradients -->
+        <defs>
+          <radialGradient id="avatarGlow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stop-color="#818CF8" />
+            <stop offset="100%" stop-color="#818CF8" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="bodyGrad" x1="80" y1="106" x2="80" y2="154" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4F46E5" />
+            <stop offset="100%" stop-color="#3730A3" />
+          </linearGradient>
+          <linearGradient id="headGrad" x1="80" y1="36" x2="80" y2="112" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FEF3C7" />
+            <stop offset="100%" stop-color="#FDE68A" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    const routineData = {
+      medication: {
+        id: "morning_tablet",
+        time: "09:00",
+        title: "Morning Tablet",
+        icon: "💊",
+        msg: "Time for your morning tablet! 💊 Remember to take it with a refreshing glass of water.",
+        voice: "Time for your morning tablet! Remember to take it with some water."
+      },
+      brain_game: {
+        id: "brain_exercise",
+        time: "11:00",
+        title: "Brain Game Warm-up",
+        icon: "🧠",
+        msg: "Ready for a fun 5-minute memory matching exercise? 🧠 Let's flex our cognitive muscles!",
+        voice: "Ready for a fun five minute memory game? Let's have some fun!"
+      },
+      hydration: {
+        id: "hydration_check",
+        time: "15:00",
+        title: "Hydration Check",
+        icon: "🥛",
+        msg: "Let's take a quick pause for a fresh glass of water! 🥛 Hydration keeps our brain sharp.",
+        voice: "Let's take a quick pause for a fresh glass of water. Hydration keeps our brain sharp!"
+      },
+      evening_med: {
+        id: "evening_tablet",
+        time: "20:00",
+        title: "Evening Tablet",
+        icon: "🌙",
+        msg: "Time for your evening tablet before bed! 🌙 Rest well tonight.",
+        voice: "Time for your evening tablet before bed. Have a peaceful, restful sleep!"
+      },
+      stretch: {
+        id: "stretch",
+        time: "14:00",
+        title: "Seated Stretch",
+        icon: "🧘‍♂️",
+        msg: "Time for a relaxing 2-minute seated shoulder roll and stretch! 🧘‍♂️ Feel the gentle energy.",
+        voice: "Time for a relaxing two minute seated stretch. Roll your shoulders gently and breathe in."
+      },
+      family_call: {
+        id: "family_call",
+        time: "16:30",
+        title: "Family Connection",
+        icon: "📞",
+        msg: "How about sharing a smile with your family today? 📞 A quick hello brings so much joy!",
+        voice: "How about sharing a smile with your family today? A quick hello call brings so much joy!"
+      }
+    };
+
+    let currentRoutineKey = 'medication';
+    let completedTotal = 3;
+    const maxDailyRoutines = 4;
+    let liveModeEnabled = true;
+    let lastTriggeredMinute = "";
+    let simulatedTimeOffset = 0; // offset in ms for simulation
+
+    // Speech Synthesis helper
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Stop prior audio
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.95; // Friendly, calm pacing
+        utterance.pitch = 1.1; // Warm tone
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // Toggle Live Trigger Mode
+    function toggleLiveMode() {
+      liveModeEnabled = document.getElementById('liveTriggerToggle').checked;
+      addLogEntry("System", `Real-time trigger mode ${liveModeEnabled ? 'Enabled 🟢' : 'Paused ⚪'}`, 'log-triggered');
+    }
+
+    // Real-Time Clock Loop & Time Synchronization
+    async function syncNetworkTime() {
+      try {
+        const res = await fetch("https://timeapi.io/api/v1/time/current/zone?timeZone=Asia/Kolkata");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.dateTime) {
+            document.getElementById('clockSyncStatus').innerHTML = "<span>●</span> Internet Time Synced (timeapi.io)";
+            document.getElementById('clockSyncStatus').style.color = "#34D399";
+          }
+        }
+      } catch (e) {
+        document.getElementById('clockSyncStatus').innerHTML = "<span>●</span> Local System Clock Active";
+        document.getElementById('clockSyncStatus').style.color = "#38BDF8";
+      }
+    }
+    syncNetworkTime();
+    setInterval(syncNetworkTime, 60000); // Sync every minute
+
+    function updateLiveClock() {
+      const now = new Date(Date.now() + simulatedTimeOffset);
+
+      let hours = now.getHours();
+      const minutes = now.getMinutes();
+      const seconds = now.getSeconds();
+
+      const hh = String(hours).padStart(2, '0');
+      const mm = String(minutes).padStart(2, '0');
+      const ss = String(seconds).padStart(2, '0');
+
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+      const displayStr = `${String(displayHours).padStart(2, '0')}:${mm}:${ss} ${period}`;
+
+      document.getElementById('liveClockDisplay').innerText = displayStr;
+
+      const currentHHMM = `${hh}:${mm}`;
+
+      // Real-time routine trigger check
+      if (liveModeEnabled && currentHHMM !== lastTriggeredMinute) {
+        for (const [key, routine] of Object.entries(routineData)) {
+          if (routine.time === currentHHMM) {
+            lastTriggeredMinute = currentHHMM;
+            addLogEntry(routine.title, `Scheduled Reminder Triggered at ${displayStr} ⏰`, 'log-triggered');
+            triggerRoutine(key);
+            break;
+          }
+        }
+      }
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    // Simulate jumping to specific routine schedule time
+    function simulateTime(targetTime24, routineKey) {
+      const parts = targetTime24.split(":");
+      const targetHours = parseInt(parts[0], 10);
+      const targetMinutes = parseInt(parts[1], 10);
+
+      const now = new Date();
+      const targetDate = new Date();
+      targetDate.setHours(targetHours, targetMinutes, 0, 0);
+
+      simulatedTimeOffset = targetDate.getTime() - now.getTime();
+      lastTriggeredMinute = ""; // reset debounce
+
+      updateLiveClock();
+      addLogEntry("Simulator", `Clock advanced to ${targetTime24} (${routineData[routineKey]?.title}) ⏩`, 'log-triggered');
+      triggerRoutine(routineKey);
+    }
+
+    // Trigger Routine Pop-up
+    function triggerRoutine(key) {
+      const routine = routineData[key] || routineData.medication;
+      currentRoutineKey = key;
+
+      // Highlight button
+      document.querySelectorAll('.routine-btn').forEach(btn => btn.classList.remove('active-now'));
+      const activeBtn = document.getElementById(`btn-${key}`);
+      if (activeBtn) activeBtn.classList.add('active-now');
+
+      // Update Speech Bubble
+      document.getElementById('bubbleIcon').innerText = routine.icon;
+      document.getElementById('bubbleTitle').innerText = routine.title;
+      document.getElementById('bubbleMsg').innerText = routine.msg;
+
+      const bubble = document.getElementById('speechBubble');
+      bubble.classList.remove('active');
+      void bubble.offsetWidth; // Force Reflow
+      bubble.classList.add('active');
+
+      // Animate Avatar (Waving / Bouncing)
+      const charGroup = document.getElementById('characterGroup');
+      charGroup.classList.remove('character-wave', 'character-bounce');
+      void charGroup.offsetWidth;
+      charGroup.classList.add('character-wave');
+
+      // Speak Voice
+      speakText(routine.voice);
+    }
+
+    // Complete Current Routine
+    function completeCurrentRoutine() {
+      const routine = routineData[currentRoutineKey] || routineData.medication;
+
+      // Cheerful voice celebration
+      const cheerPhrases = [
+        "Wonderful job! You're doing amazing!",
+        "Completed! Keeping up your daily habits makes a big difference!",
+        "Great work, Eleanor! Keep that positive energy going!"
+      ];
+      const randomCheer = cheerPhrases[Math.floor(Math.random() * cheerPhrases.length)];
+      speakText(randomCheer);
+
+      // Trigger Confetti Explosion
+      fireConfetti();
+
+      // Animate Happy Avatar Bounce
+      const charGroup = document.getElementById('characterGroup');
+      charGroup.classList.remove('character-wave', 'character-bounce');
+      void charGroup.offsetWidth;
+      charGroup.classList.add('character-bounce');
+
+      // Update Compliance Stats
+      completedTotal = Math.min(maxDailyRoutines, completedTotal + 1);
+      const complianceRate = Math.round((completedTotal / maxDailyRoutines) * 100);
+      document.getElementById('compliancePercent').innerText = `${complianceRate}%`;
+      document.getElementById('completedCount').innerText = `${completedTotal} / ${maxDailyRoutines}`;
+      document.getElementById('progressBar').style.width = `${complianceRate}%`;
+
+      // Log event
+      addLogEntry(routine.title, 'Completed ✅', 'log-completed');
+
+      // Close Bubble after short delay
+      setTimeout(() => {
+        document.getElementById('speechBubble').classList.remove('active');
+      }, 2500);
+    }
+
+    // Snooze Current Routine
+    function snoozeCurrentRoutine() {
+      const routine = routineData[currentRoutineKey] || routineData.medication;
+      speakText("No problem at all! I'll remind you in a little while.");
+
+      addLogEntry(routine.title, 'Snoozed ⏰', 'log-snoozed');
+
+      document.getElementById('speechBubble').classList.remove('active');
+    }
+
+    // Tap Avatar Greeting
+    function avatarTapGreeting() {
+      speakText("Hello there! I'm your DementiaCare AI companion. Ready for a wonderful day!");
+      triggerRoutine('brain_game');
+    }
+
+    // Add entry to on-screen log
+    function addLogEntry(name, statusText, statusClass) {
+      const logPanel = document.getElementById('logPanel');
+      const now = new Date(Date.now() + simulatedTimeOffset);
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const newEntry = document.createElement('div');
+      newEntry.className = 'log-entry';
+      newEntry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${name} <span class="${statusClass}">${statusText}</span>`;
+
+      logPanel.prepend(newEntry);
+    }
+
+    // =========================================================================
+    // Canvas Confetti Engine
+    // =========================================================================
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function fireConfetti() {
+      const colors = ['#4F46E5', '#06B6D4', '#10B981', '#F59E0B', '#EC4899'];
+      for (let i = 0; i < 75; i++) {
+        particles.push({
+          x: window.innerWidth - 100,
+          y: window.innerHeight - 100,
+          vx: (Math.random() - 0.7) * 16,
+          vy: (Math.random() - 0.8) * 20 - 6,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          life: 100
+        });
+      }
+    }
+
+    function renderConfetti() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((p, index) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.4; // Gravity
+        p.rotation += p.rotSpeed;
+        p.life -= 1.2;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.life / 100);
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+
+        if (p.life <= 0) {
+          particles.splice(index, 1);
+        }
+      });
+      requestAnimationFrame(renderConfetti);
+    }
+    renderConfetti();
+  </script>
+</body>
+
+</html>

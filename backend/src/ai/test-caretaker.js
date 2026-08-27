@@ -1,6 +1,7 @@
 /**
  * test-caretaker.js
- * Standalone unit test suite for the Caretaker AI module (caretakerAI.js).
+ * Standalone unit test suite for the Caretaker AI module (caretakerAI.js),
+ * Routine Manager (routineManager.js), and Real-Time Clock Service (timeService.js).
  * 
  * Uses Node.js built-in `assert` module - no external test frameworks required.
  * 
@@ -18,7 +19,18 @@ try {
   // Dotenv optional in isolated test environments
 }
 
-const { analyzeCaretakerData, analyzeCognitiveData } = require("./caretakerAI");
+const {
+  analyzeCaretakerData,
+  analyzeCognitiveData,
+  routineManager,
+  timeService,
+  getDefaultRoutines,
+  getActiveReminders,
+  checkRealTimeRoutines,
+  extractCurrentTimeHHMM,
+  logRoutineEvent,
+  calculateCompliance
+} = require("./caretakerAI");
 
 // ANSI color codes for terminal formatting
 const colors = {
@@ -126,6 +138,12 @@ const mockPayload = {
       difficulty: "hard",
       playedAt: "2026-08-25T10:30:00Z"
     }
+  ],
+  routineLogs: [
+    { routineId: "morning_tablet", status: "completed", timestamp: "2026-08-27T09:05:00Z" },
+    { routineId: "brain_exercise", status: "completed", timestamp: "2026-08-27T11:15:00Z" },
+    { routineId: "hydration_check", status: "completed", timestamp: "2026-08-27T15:10:00Z" },
+    { routineId: "evening_tablet", status: "snoozed", timestamp: "2026-08-27T20:05:00Z" }
   ]
 };
 
@@ -143,10 +161,93 @@ async function runUnitTests() {
     assert.strictEqual(mockPayload.user.name, "Eleanor Vance");
     assert.strictEqual(mockPayload.user.age, 74);
     assert.strictEqual(mockPayload.gameResults.length, 6);
+    assert.strictEqual(mockPayload.routineLogs.length, 4);
   });
 
-  // --- Suite 2 & 5A: Fallback Mechanism & Schema Compliance (API Key Isolated) ---
-  console.log(`\n${colors.yellow}${colors.bold}Suite 2: Fallback Engine (API Key Isolated - Offline Mode)${colors.reset}`);
+  // --- Suite 2: Real-Time Clock & Internet Time Service ---
+  console.log(`\n${colors.yellow}${colors.bold}Suite 2: Real-Time Clock & Internet Time Service${colors.reset}`);
+  
+  reportTest("System clock extraction in HH:MM format", () => {
+    const sysTime = timeService.getSystemTime("Asia/Kolkata");
+    assert.ok(sysTime.time24 && sysTime.time24.includes(":"), "Should format 24-hour time string");
+    assert.ok(sysTime.time12 && (sysTime.time12.includes("AM") || sysTime.time12.includes("PM")), "Should format 12-hour time string");
+    assert.strictEqual(sysTime.source, "system");
+  });
+
+  await reportAsyncTest("Internet time synchronization with fallback to system clock", async () => {
+    const timeResult = await timeService.getCurrentTime("Asia/Kolkata");
+    assert.ok(timeResult.date instanceof Date, "Result must contain valid Date object");
+    assert.ok(timeResult.time24.match(/^\d{2}:\d{2}$/), "24-hour format must match HH:MM");
+    assert.ok(["network", "system"].includes(timeResult.source), "Source must be 'network' or 'system'");
+  });
+
+  await reportAsyncTest("Real-time routine check against live clock", async () => {
+    const checkResult = await checkRealTimeRoutines({ timeZone: "Asia/Kolkata" });
+    assert.ok(Array.isArray(checkResult.activeReminders), "Active reminders must be an array");
+    assert.ok(checkResult.currentTime && checkResult.currentTime.time24, "Must return current time info");
+  });
+
+  // --- Suite 3: Routine Schedule & Compliance Management ---
+  console.log(`\n${colors.yellow}${colors.bold}Suite 3: Routine Reminder & Adherence Manager${colors.reset}`);
+  
+  reportTest("Default daily routine schedule definitions", () => {
+    const routines = getDefaultRoutines();
+    assert.strictEqual(routines.length, 4, "Should have 4 default routine schedules");
+
+    const ids = routines.map(r => r.id);
+    assert.ok(ids.includes("morning_tablet"), "Must include morning_tablet");
+    assert.ok(ids.includes("brain_exercise"), "Must include brain_exercise");
+    assert.ok(ids.includes("hydration_check"), "Must include hydration_check");
+    assert.ok(ids.includes("evening_tablet"), "Must include evening_tablet");
+
+    const morning = routines.find(r => r.id === "morning_tablet");
+    assert.strictEqual(morning.displayTime, "09:00 AM");
+    assert.ok(morning.message.includes("morning tablet"), "Morning message must match specification");
+
+    const brain = routines.find(r => r.id === "brain_exercise");
+    assert.strictEqual(brain.displayTime, "11:00 AM");
+    assert.ok(brain.message.includes("5-minute memory game"), "Brain exercise message must match specification");
+
+    const hydration = routines.find(r => r.id === "hydration_check");
+    assert.strictEqual(hydration.displayTime, "03:00 PM");
+    assert.ok(hydration.message.includes("glass of water"), "Hydration message must match specification");
+
+    const evening = routines.find(r => r.id === "evening_tablet");
+    assert.strictEqual(evening.displayTime, "08:00 PM");
+    assert.ok(evening.message.includes("evening tablet"), "Evening message must match specification");
+  });
+
+  reportTest("Active reminders trigger detection based on reference time", () => {
+    // 09:10 AM should trigger Morning Tablet (window is active)
+    const morningActive = getActiveReminders("09:10 AM");
+    assert.ok(morningActive.some(r => r.id === "morning_tablet"), "09:10 AM must trigger morning_tablet");
+
+    // 03:05 PM should trigger Hydration Check
+    const afternoonActive = getActiveReminders("03:05 PM");
+    assert.ok(afternoonActive.some(r => r.id === "hydration_check"), "03:05 PM must trigger hydration_check");
+
+    // 01:00 AM should return empty active reminders
+    const nightActive = getActiveReminders("01:00 AM");
+    assert.strictEqual(nightActive.length, 0, "01:00 AM should have no active reminders");
+  });
+
+  reportTest("Routine event logging and compliance rate calculation", () => {
+    routineManager.clearLogs();
+    logRoutineEvent("morning_tablet", "completed");
+    logRoutineEvent("brain_exercise", "completed");
+    logRoutineEvent("hydration_check", "completed");
+    logRoutineEvent("evening_tablet", "snoozed");
+
+    const stats = calculateCompliance();
+    assert.strictEqual(stats.totalRoutines, 4);
+    assert.strictEqual(stats.completedCount, 3);
+    assert.strictEqual(stats.snoozedCount, 1);
+    assert.strictEqual(stats.complianceRate, 75);
+    assert.ok(stats.summaryText.includes("3 of 4 daily routines completed (75% adherence)"));
+  });
+
+  // --- Suite 4 & 6A: Fallback Mechanism & Schema Compliance (API Key Isolated) ---
+  console.log(`\n${colors.yellow}${colors.bold}Suite 4: Fallback Engine & Schema Compliance (API Key Isolated)${colors.reset}`);
   let fallbackResult;
 
   await reportAsyncTest("Execute analyzeCognitiveData with empty API key (fallback trigger)", async () => {
@@ -173,8 +274,15 @@ async function runUnitTests() {
     assert.ok(Array.isArray(fallbackResult.recommendations) && fallbackResult.recommendations.length > 0, "'recommendations' must be non-empty array");
   });
 
-  // --- Suite 3: Trend & Recommendation Accuracy ---
-  console.log(`\n${colors.yellow}${colors.bold}Suite 3: Trend & Recommendation Accuracy${colors.reset}`);
+  reportTest("Routine Compliance integrated into Caretaker output", () => {
+    assert.ok(fallbackResult.routineCompliance, "routineCompliance should be included in output");
+    assert.strictEqual(fallbackResult.routineCompliance.totalRoutines, 4);
+    assert.strictEqual(fallbackResult.routineCompliance.completedCount, 3);
+    assert.strictEqual(fallbackResult.routineCompliance.complianceRate, 75);
+  });
+
+  // --- Suite 5: Trend & Recommendation Accuracy ---
+  console.log(`\n${colors.yellow}${colors.bold}Suite 5: Trend & Recommendation Accuracy${colors.reset}`);
   reportTest("Trend Detection: memory_match is flagged as declining or placed under areasToWatch", () => {
     const trendsText = JSON.stringify(fallbackResult.trends).toLowerCase();
     const watchText = JSON.stringify(fallbackResult.areasToWatch).toLowerCase();
@@ -207,8 +315,8 @@ async function runUnitTests() {
     assert.ok(hasDifficulty, "Recommendations should specify appropriate target difficulties");
   });
 
-  // --- Suite 4: Non-Clinical Guardrail Validation ---
-  console.log(`\n${colors.yellow}${colors.bold}Suite 4: Non-Clinical Safety Guardrails${colors.reset}`);
+  // --- Suite 6: Non-Clinical Guardrail Validation ---
+  console.log(`\n${colors.yellow}${colors.bold}Suite 6: Non-Clinical Safety Guardrails${colors.reset}`);
   reportTest("Guardrail Safety: Zero medical diagnostic or clinical terms in output", () => {
     const bannedTerms = [
       "dementia",
@@ -234,13 +342,13 @@ async function runUnitTests() {
     }
   });
 
-  // --- Suite 5: Live Gemini API Integration (if key present in .env) ---
-  console.log(`\n${colors.yellow}${colors.bold}Suite 5: Live Gemini API Integration${colors.reset}`);
+  // --- Suite 7: Live Gemini API Integration (if key present in .env) ---
+  console.log(`\n${colors.yellow}${colors.bold}Suite 7: Live Gemini API Integration${colors.reset}`);
   const envApiKey = process.env.GEMINI_API_KEY;
   let liveResult = null;
 
   if (envApiKey && envApiKey !== "MY_GEMINI_API_KEY") {
-    await reportAsyncTest("Execute analyzeCognitiveData with live Gemini API", async () => {
+    await reportAsyncTest("Execute analyzeCognitiveData with live Gemini API & Routine Adherence", async () => {
       liveResult = await analyzeCaretakerData(mockPayload);
       assert.ok(liveResult, "Live Gemini response object should be returned");
       assert.strictEqual(typeof liveResult.summary, "string");
@@ -249,6 +357,8 @@ async function runUnitTests() {
       assert.ok(Array.isArray(liveResult.areasToWatch) && liveResult.areasToWatch.length > 0);
       assert.ok(Array.isArray(liveResult.trends) && liveResult.trends.length > 0);
       assert.ok(Array.isArray(liveResult.recommendations) && liveResult.recommendations.length > 0);
+      assert.ok(liveResult.routineCompliance, "Live result must include routineCompliance");
+      assert.strictEqual(liveResult.routineCompliance.complianceRate, 75);
     });
 
     reportTest("Live Gemini output conforms to non-clinical safety guardrails", () => {
@@ -271,13 +381,32 @@ async function runUnitTests() {
   console.log(`  Test Run Summary: ${passedTests}/${totalTests} Passed (${failedTests} Failed)`);
   console.log(`========================================${colors.reset}\n`);
 
-  console.log(`${colors.bold}Sample Formatted Output Result:${colors.reset}`);
+  console.log(`${colors.bold}Sample Formatted Output Result (with Routine Compliance):${colors.reset}`);
   console.log(JSON.stringify(liveResult || fallbackResult, null, 2));
   console.log("\n");
 
   if (failedTests > 0) {
     process.exit(1);
   }
+
+  // --- Auto-launch Visual Browser Test Preview ---
+  const visualHtmlPath = path.resolve(__dirname, "visual-test.html");
+  console.log(`${colors.cyan}🌐 Launching Caretaker visual browser test preview: ${visualHtmlPath}${colors.reset}`);
+
+  const { exec } = require("child_process");
+  const launchCmd = process.platform === "win32"
+    ? `start "" "${visualHtmlPath}"`
+    : process.platform === "darwin"
+    ? `open "${visualHtmlPath}"`
+    : `xdg-open "${visualHtmlPath}"`;
+
+  exec(launchCmd, (err) => {
+    if (err) {
+      console.log(`  ${colors.yellow}ℹ To view visual preview manually, open:${colors.reset} file://${visualHtmlPath}`);
+    } else {
+      console.log(`  ${colors.green}✔ Visual test preview launched in default browser!${colors.reset}\n`);
+    }
+  });
 }
 
 runUnitTests();

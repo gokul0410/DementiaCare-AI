@@ -7,33 +7,41 @@
  * It strictly analyzes engagement, game performance, and provides activity recommendations.
  */
 
-const SYSTEM_INSTRUCTION = `You are a supportive, compassionate Caretaker AI Assistant designed to help caregivers and family members understand a senior user's cognitive game activity and engagement.
+const SYSTEM_INSTRUCTION = `You are a supportive, compassionate Caretaker AI Assistant designed to help caregivers and family members understand a senior user's cognitive game activity, daily routine adherence, and engagement.
 
 CRITICAL SAFETY & ETHICAL RULES:
 1. NEVER diagnose dementia, Alzheimer's, cognitive impairment, or any medical condition.
 2. DO NOT use clinical or diagnostic language (e.g., "cognitive decline", "symptom", "pathology", "disease").
-3. Use constructive, encouraging, activity-focused terminology (e.g., "performing strongly in memory activities", "may benefit from gentler pacing in word games", "steady engagement").
+3. Use constructive, encouraging, activity-focused terminology (e.g., "performing strongly in memory activities", "may benefit from gentler pacing in word games", "steady engagement", "good routine adherence").
 4. Keep the summary clear, respectful, easy to understand for non-medical caretakers, and directly actionable.
-5. All insights must be grounded solely in the provided game performance data (score, accuracy, time taken, game type, difficulty).`;
+5. All insights must be grounded solely in the provided game performance and routine completion data.`;
 
 /**
  * Builds the user prompt for the Gemini API.
  * @param {Object} user - User profile ({ id, name, age, language })
  * @param {Object} analysis - Statistical analysis containing metrics, strengths, areasToWatch, trends
  * @param {Array} ruleRecommendations - Initial algorithmic recommendations
+ * @param {Object} [routineStats] - Optional routine compliance stats
  * @returns {string} Formatted prompt string for Gemini
  */
-function buildCaretakerPrompt(user, analysis, ruleRecommendations) {
+function buildCaretakerPrompt(user, analysis, ruleRecommendations, routineStats = null) {
   const userName = user?.name || "User";
   const userAge = user?.age ? `${user.age}-year-old` : "Senior";
   const userLang = user?.language || "English";
 
-  return `Please analyze the cognitive game performance data for ${userName} (${userAge}, Preferred Language: ${userLang}).
+  const routineSection = routineStats && routineStats.totalRoutines > 0
+    ? `\nDAILY ROUTINE ADHERENCE:
+- Completion Status: ${routineStats.summaryText || 'Routines tracked'}
+- Adherence Rate: ${routineStats.complianceRate}% (${routineStats.completedCount}/${routineStats.totalRoutines} completed, ${routineStats.snoozedCount || 0} snoozed)`
+    : "";
+
+  return `Please analyze the cognitive game performance and daily routine data for ${userName} (${userAge}, Preferred Language: ${userLang}).
 
 PERFORMANCE SUMMARY:
 - Total Game Sessions: ${analysis.overall?.totalSessions || 0}
 - Average Accuracy: ${analysis.overall?.avgAccuracy || 0}%
 - Average Time Taken: ${analysis.overall?.avgTimeTaken || 0} seconds
+${routineSection}
 
 IDENTIFIED STRENGTHS:
 ${analysis.strengths && analysis.strengths.length > 0 
@@ -56,11 +64,11 @@ ${ruleRecommendations && ruleRecommendations.length > 0
   : "- Continue regular gentle daily cognitive play."}
 
 TASK:
-Generate a concise, empathetic Caretaker Summary and refined activity guidance.
+Generate a concise, empathetic Caretaker Summary and refined activity guidance. If routine adherence data is available, briefly include a natural, supportive mention of their routine consistency.
 
 Return your response strictly in the following JSON format without Markdown code fences or extra text:
 {
-  "summary": "2-3 empathetic, clear sentences summarizing overall activity engagement, notable positive highlights, and general encouragement.",
+  "summary": "2-3 empathetic, clear sentences summarizing overall activity engagement, notable positive highlights, routine consistency if applicable, and general encouragement.",
   "refinedStrengths": ["Bullet points highlighting specific activities the user excelled at"],
   "refinedAreasToWatch": ["Bullet points gently noting activities that took more effort or had lower accuracy"],
   "refinedRecommendations": ["Bullet points of 2-4 practical, fun, non-medical cognitive activities and suggested difficulty levels"]
@@ -72,9 +80,10 @@ Return your response strictly in the following JSON format without Markdown code
  * @param {Object} user - User profile
  * @param {Object} analysis - Analysis results
  * @param {Array} recommendations - Recommendations list
+ * @param {Object} [routineStats] - Optional routine compliance stats
  * @returns {string} Clean, friendly summary
  */
-function buildFallbackSummary(user, analysis, recommendations) {
+function buildFallbackSummary(user, analysis, recommendations, routineStats = null) {
   const userName = user?.name || "The user";
   const total = analysis?.overall?.totalSessions || 0;
   const avgAcc = analysis?.overall?.avgAccuracy || 0;
@@ -91,6 +100,10 @@ function buildFallbackSummary(user, analysis, recommendations) {
     sentences.push(`Focus area: ${analysis.areasToWatch[0]}`);
   } else {
     sentences.push("Consistent and steady engagement was observed across all recorded activities.");
+  }
+
+  if (routineStats && routineStats.totalRoutines > 0) {
+    sentences.push(`Daily routine adherence is at ${routineStats.complianceRate}% with ${routineStats.completedCount} of ${routineStats.totalRoutines} routines completed.`);
   }
 
   sentences.push("Continuing regular, relaxed daily sessions is recommended to keep activities enjoyable.");
